@@ -1,2 +1,0 @@
-# duktape-testrunner
-Duktape testrunner
