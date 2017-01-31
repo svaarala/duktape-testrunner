@@ -11,8 +11,8 @@ which is integrated with Github webhooks.  Current functionality:
 * Accepting webhook POSTs from Github
 
 * Managing the execution of a set of tests associated with commits
-  ("push" events) together with test clients; each test is a simple
-  script with a textual output and a success/failure indication
+  ("push" and "pull_request" events) together with test clients; each test
+  is a simple script with a textual output and a success/failure indication
 
 * Integrating test execution status with Github status API
 
@@ -27,8 +27,7 @@ The main goals for the client-server model are:
   coverage incrementally.  For example, test scripts might include basic
   compile/test runs for some applications using Duktape.
 
-At this point the functionality is very limited; future work is listed at
-the end of this document.
+At this point the functionality is very limited.
 
 Server architecture
 ===================
@@ -246,9 +245,6 @@ These are not documented in detail here, see source for details:
 Security considerations
 =======================
 
-Foreign pull requests
----------------------
-
 Running test cases involves compiling and executing arbitrary C code on the
 test target.  It's therefore quite dangerous to automatically execute tests
 for all pull requests -- anyone can create pull requests and place arbitrary
@@ -264,40 +260,6 @@ network filtering, backstop sanity timeouts, etc.
 See similar discussion related to Travis secure environment variables:
 
 * http://docs.travis-ci.com/user/pull-requests/#Security-Restrictions-when-testing-Pull-Requests
-
-Future work
-===========
-
-* Test timeouts and other sanity checks.
-
-* Multiple client identifiers/passwords, now shared.
-
-* Consistent error handling: error code, message, details.
-
-* Add better server tracking for pending test jobs, so that a job can be
-  reassigned or retried if the client never comes back.  Alternatively,
-  support for manually retriggering a job.
-
-* Add ``accept-simple-commit`` so that the client can explicitly indicate
-  it has received a job and is running it.  This would make it clear for
-  the server whether the ``get-simple-commit`` response was actually received;
-  this is not always the case e.g. if the client has already exited.
-
-* Add persistent client state for accepted jobs so that if the client dies
-  it can report that it didn't finish the job.  Ensure clear separation
-  between errors in trying to run the tests and errors in the tests themselves
-  (this is not always 100% because an out-of-memory error, for example, can
-  look like an error in trying to run the test rather than indicating an
-  actual bug).  The server should get the necessary information to retry the
-  job a few times.
-
-* Add enough state to list recently connected clients, as well as all
-  clients ever seen in the web UI status page.
-
-* Proper web UI, serve static HTML/CSS/JS and use e.g. socket.io for a
-  dynamic listing, status, etc.
-
-* Better test isolation.
 
 References
 ==========
