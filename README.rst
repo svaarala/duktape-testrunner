@@ -221,10 +221,12 @@ for details:
 +-----------------------------+----------+----------------+--------------------------------------------------------+
 | /github-webhook             | POST     | Github         | Github webhook: https://developer.github.com/webhooks/ |
 +-----------------------------+----------+----------------+--------------------------------------------------------+
-| /get-simple-commit          | POST     | Testrunner     | Request a commit-related test for list of supported    |
+| /get-commit-simple          | POST     | Testrunner     | Request a commit-related test for list of supported    |
 |                             |          |                | contexts                                               |
 +-----------------------------+----------+----------------+--------------------------------------------------------+
-| /finish-simple-commit       | POST     | Testrunner     | Finish a commit-related test for a context             |
+| /accept-commit-simple       | POST     | Testrunner     | Confirm that a commit-related test has been received   |
++-----------------------------+----------+----------------+--------------------------------------------------------+
+| /finish-commit-simple       | POST     | Testrunner     | Finish a commit-related test for a context             |
 +-----------------------------+----------+----------------+--------------------------------------------------------+
 
 Nedb document types
