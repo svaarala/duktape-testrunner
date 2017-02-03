@@ -17,6 +17,7 @@ var assert = util.assert;
 var expressutil = require('./expressutil');
 var dbutil = require('./dbutil');
 var githubutil = require('./githubutil');
+var commitutil = require('./commitutil');
 var webuiutil = require('./webuiutil');
 
 function main() {
