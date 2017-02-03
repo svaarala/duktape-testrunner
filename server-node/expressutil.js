@@ -75,7 +75,14 @@ function makeLogRequest() {
     };
 }
 
+// Send a JSON reply to an Express response.
+function sendJsonReply(res, obj) {
+    var repData = new Buffer(JSON.stringify(obj), 'utf8');
+    res.send(repData);
+}
+
 exports.makeApiJsonBodyParser = makeApiJsonBodyParser;
 exports.makeGithubJsonBodyParser = makeGithubJsonBodyParser;
 exports.makeApiBasicAuth = makeApiBasicAuth;
 exports.makeLogRequest = makeLogRequest;
+exports.sendJsonReply = sendJsonReply;

@@ -29,7 +29,7 @@ function main() {
     console.log('Load config: ' + configFile);
     var state = yaml.load(configFile);
 
-    // Datastore
+    // Datastore init.
     console.log('Initialize NeDB datastore: ' + state.databaseFile);
     var db = new Datastore({
         filename: state.databaseFile,
@@ -67,9 +67,11 @@ function main() {
     app.post('/github-webhook', logRequest, githubJsonBodyParser,
              githubutil.makeGithubWebhookHandler(state));
     app.post('/get-commit-simple', logRequest, apiBasicAuth, apiJsonBodyParser,
-             githubutil.makeGetCommitSimpleHandler(state));
+             commitutil.makeGetCommitSimpleHandler(state));
+    app.post('/accept-commit-simple', logRequest, apiBasicAuth, apiJsonBodyParser,
+             commitutil.makeAcceptCommitSimpleHandler(state));
     app.post('/finish-commit-simple', logRequest, apiBasicAuth, apiJsonBodyParser,
-             githubutil.makeFinishCommitSimpleHandler(state));
+             commitutil.makeFinishCommitSimpleHandler(state));
 
     // HTTPS server.
     var apiServer = https.createServer({
@@ -86,7 +88,7 @@ function main() {
     // Github pushes, etc.
     function periodicDatabaseScan() {
         githubutil.pushGithubStatuses(state);       // persistent github status pushing
-        githubutil.handleGetCommitRequests(state);  // webhook client timeouts
+        commitutil.handleGetCommitRequests(state);  // webhook client timeouts
     }
     var dbScanTimer = setInterval(periodicDatabaseScan, 5000);
 }
