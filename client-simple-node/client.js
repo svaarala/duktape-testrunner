@@ -112,6 +112,15 @@ function postJson(path, request, cb) {
             });
         });
 
+        // http://stackoverflow.com/questions/6214902/how-to-set-a-timeout-on-a-http-request-in-node
+        req.on('socket', function (socket) {
+            socket.setTimeout(clientConfig.requestTimeout);
+            socket.on('timeout', function () {
+                console.log('client request timeout, abort socket forcibly');
+                req.abort();
+            });
+        });
+
         req.on('error', function (err) {
             reject(err);
         });

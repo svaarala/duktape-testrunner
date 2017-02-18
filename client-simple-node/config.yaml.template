@@ -15,6 +15,9 @@ clientAuthPassword: 'foopass'
 # Client name (human readable), should be User-Agent compatible.
 clientName: 'test-client'
 
+# HTTPS request timeout.
+requestTimeout: 300000
+
 # Sleeps between successful/failed jobs.
 sleepJobSuccess: 10000
 sleepJobFailure: 60000
