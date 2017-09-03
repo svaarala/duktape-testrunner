@@ -265,9 +265,10 @@ function processSimpleScriptJob(rep) {
         // could also use an explicit output file.  Match last occurrence
         // on purpose so that the script can always override a previous
         // status if necessary.
-        var desc = null;
+        var result_desc = null;
+        var result_json = null;
         try {
-            desc = (function () {
+            result_desc = (function () {
                 var txt = res.data.toString('utf8');  // XXX: want something lenient
                 var re = /^TESTRUNNER_DESCRIPTION: (.*?)$/gm;
                 var m;
@@ -280,6 +281,20 @@ function processSimpleScriptJob(rep) {
         } catch (e) {
             console.log(e);
         }
+        try {
+            result_json = (function () {
+                var txt = res.data.toString('utf8');  // XXX: want something lenient
+                var re = /^TESTRUNNER_RESULT_JSON: (.*?)$/gm;
+                var m;
+                var out = null;
+                while ((m = re.exec(txt)) !== null) {
+                    out = m[1];
+                }
+                return JSON.parse(out);
+            })();
+        } catch (e) {
+            console.log(e);
+        }
 
         postJson('/finish-commit-simple', {
             repo: assert(repo),
@@ -288,8 +303,9 @@ function processSimpleScriptJob(rep) {
             sha: assert(sha),
             context: assert(context),
             state: res.code === 0 ? 'success' : 'failure',
-            description: desc || (res.code === 0 ? 'Success' : 'Failure'),
-            text: res.data.toString('base64')
+            description: result_desc || (res.code === 0 ? 'Success' : 'Failure'),
+            text: res.data.toString('base64'),
+            result: result_json
         }).then(function (rep) {
             //console.log(rep);
         }).catch(function (err) {
