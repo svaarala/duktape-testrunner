@@ -373,8 +373,34 @@ function requestAndExecute() {
     setTimeout(function () {}, 10000000);  // avoid exit
 }
 
+function sendSingleRequest() {
+    if (!argv['request-uri']) {
+        throw new Error('request-uri required');
+    }
+    if (!argv['request-json']) {
+        throw new Error('request-json required');
+    }
+    if (!argv['output-file']) {
+        throw new Error('output-file required');
+    }
+
+    postJson(argv['request-uri'], JSON.parse(argv['request-json'])).then(function (rep) {
+        fs.writeFileSync(argv['output-file'], JSON.stringify(rep, null, 4) + '\n');
+        console.log('Success, wrote output to: ' + argv['output-file']);
+        process.exit(0);
+    }).catch(function (err) {
+        console.log('FAILED:');
+        console.log(err.stack);
+        process.exit(1);
+    })
+}
+
 function main() {
-    requestAndExecute();
+    if (argv['request-uri']) {
+        sendSingleRequest();
+    } else {
+        requestAndExecute();
+    }
 }
 
 main();
