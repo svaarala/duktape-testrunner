@@ -91,7 +91,7 @@ function handleGetCommitRequests(state) {
                             context: ctx
                         });
 
-                        createGithubStatus(state, {
+                        require('./githubutil').createGithubStatus(state, {
                             user: assert(state.githubStatusUsername),
                             repo: assert(doc.repo),
                             sha: assert(doc.sha),
@@ -177,6 +177,7 @@ function makeFinishCommitSimpleHandler(state) {
         // body.state        success/failure
         // body.description  oneline description
         // body.text         text, automatically served, github status URI will point to this text file
+        // body.result       arbitrary json result object
 
         function fail(code, desc) {
             var rep = { error_code: code, error_description: desc };
@@ -184,6 +185,7 @@ function makeFinishCommitSimpleHandler(state) {
             res.setHeader('content-type', 'application/json');
             res.send(repData);
         }
+
         dbutil.find(db, {
             type: 'commit_simple',
             repo_full: assert(body.repo_full),
@@ -217,23 +219,29 @@ function makeFinishCommitSimpleHandler(state) {
                         console.log('finish-commit-job already finished, ignoring');
                     } else {
                         run.end_time = Date.now();
+                        run.output_uri = outputUri;
+                        run.state = body.state;
+                        run.description = body.description;
+                        run.result = body.result || {};
+
                         console.log('finish-commit-job for sha ' + body.sha + ', context ' + body.context + '; took ' +
                                     (run.end_time - run.start_time) / 60e3 + ' mins');
 
                         db.update({
-                            _id: doc.id
+                            _id: doc._id
                         }, {
                             $set: {
                                 runs: doc.runs
                             }
                         }, function (err, numReplaced) {
                             if (err) { throw err; }
+                            if (numReplaced != 1) { console.log('numReplaced unexpected:', numReplaced); }
                         });
                     }
 
                     sendJsonReply(res, {});
 
-                    updateGithubStatus(state, {
+                    require('./githubutil').updateGithubStatus(state, {
                         user: assert(state.githubStatusUsername),
                         repo: assert(doc.repo),
                         sha: assert(doc.sha),
@@ -255,7 +263,48 @@ function makeFinishCommitSimpleHandler(state) {
     }
 }
 
+// Create a query-commit-simple handler.
+function makeQueryCommitSimpleHandler(state) {
+    var db = assert(state.db);
+    var github = assert(state.github);
+
+    return function queryCommitSimpleHandler(req, res) {
+        var body = req.body;
+        if (typeof body !== 'object') {
+           throw new Error('invalid POST body, perhaps client is missing Content-Type?');
+        }
+
+        function fail(code, desc) {
+            var rep = { error_code: code, error_description: desc };
+            var repData = new Buffer(JSON.stringify(rep), 'utf8');
+            res.setHeader('content-type', 'application/json');
+            res.send(repData);
+        }
+        dbutil.find(db, {
+            type: 'commit_simple',
+            repo_full: assert(body.repo_full),
+            sha: assert(body.sha)
+        }).then(function (docs) {
+            var doc;
+
+            if (!docs || docs.length <= 0) {
+                throw new Error('target webhook commit not found');
+            }
+            if (docs.length > 1) {
+                console.log('more than one commit_simple docs found');
+            }
+            doc = docs[docs.length - 1];
+
+            sendJsonReply(res, doc);
+        }).catch(function (err) {
+            console.log(err);
+            fail('INTERNAL_ERROR', String(err));
+        });
+    }
+}
+
 exports.handleGetCommitRequests = handleGetCommitRequests;
-exports.makeGithubWebhookHandler = makeGithubWebhookHandler;
 exports.makeGetCommitSimpleHandler = makeGetCommitSimpleHandler;
+exports.makeAcceptCommitSimpleHandler = makeAcceptCommitSimpleHandler;
 exports.makeFinishCommitSimpleHandler = makeFinishCommitSimpleHandler;
+exports.makeQueryCommitSimpleHandler = makeQueryCommitSimpleHandler;

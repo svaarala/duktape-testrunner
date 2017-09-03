@@ -73,6 +73,8 @@ function main() {
              commitutil.makeAcceptCommitSimpleHandler(state));
     app.post('/finish-commit-simple', logRequest, apiBasicAuth, apiJsonBodyParser,
              commitutil.makeFinishCommitSimpleHandler(state));
+    app.post('/query-commit-simple', logRequest, apiBasicAuth, apiJsonBodyParser,
+             commitutil.makeQueryCommitSimpleHandler(state));
 
     // HTTPS server.
     var apiServer = https.createServer({

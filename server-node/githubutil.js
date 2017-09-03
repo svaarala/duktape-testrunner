@@ -320,6 +320,7 @@ function makeGithubWebhookHandler(state) {
     };
 }
 
+exports.makeGithubWebhookHandler = makeGithubWebhookHandler;
 exports.createGithubStatus = createGithubStatus;
 exports.updateGithubStatus = updateGithubStatus;
 exports.pushGithubStatuses = pushGithubStatuses;
