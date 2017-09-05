@@ -4,6 +4,7 @@
 
 var fs = require('fs');
 var path = require('path');
+var Promise = require('bluebird');
 
 var dbutil = require('./dbutil');
 var util = require('./util');
@@ -273,6 +274,14 @@ function makeQueryCommitSimpleHandler(state) {
         if (typeof body !== 'object') {
            throw new Error('invalid POST body, perhaps client is missing Content-Type?');
         }
+        var hashes;
+        var multi = false;
+        if (typeof body.sha === 'string') {
+            hashes = [ body.sha ];
+        } else if (typeof body.sha_list === 'object') {
+            hashes = body.sha_list;
+            multi = true;
+        }
 
         function fail(code, desc) {
             var rep = { error_code: code, error_description: desc };
@@ -280,24 +289,29 @@ function makeQueryCommitSimpleHandler(state) {
             res.setHeader('content-type', 'application/json');
             res.send(repData);
         }
-        dbutil.find(db, {
-            type: 'commit_simple',
-            repo_full: assert(body.repo_full),
-            sha: assert(body.sha)
-        }).then(function (docs) {
-            var doc;
 
-            if (!docs || docs.length <= 0) {
-                throw new Error('target webhook commit not found');
-            }
-            if (docs.length > 1) {
-                console.log('more than one commit_simple docs found');
-            }
-            doc = docs[docs.length - 1];
+        var promises = hashes.map(function (hash) {
+            return dbutil.find(db, {
+                type: 'commit_simple',
+                repo_full: assert(body.repo_full),
+                sha: assert(hash)
+            }).then(function (docs) {
+                var doc;
+                if (!docs || docs.length <= 0) {
+                    return { error: 'commit ' + hash + ' not found' };
+                }
+                if (docs.length > 1) {
+                    console.log('more than one commit_simple docs found, use first; hash ' + hash);
+                }
+                doc = docs[docs.length - 1];
+                return doc;
+            });
+        });
 
-            sendJsonReply(res, doc);
+        Promise.all(promises).then(function (values) {
+            sendJsonReply(res, multi ? values : values[0]);
         }).catch(function (err) {
-            console.log(err);
+            console.log(err.stack || err);
             fail('INTERNAL_ERROR', String(err));
         });
     }
