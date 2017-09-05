@@ -382,14 +382,14 @@ function sendSingleRequest() {
     if (!argv['request-uri']) {
         throw new Error('request-uri required');
     }
-    if (!argv['request-json']) {
-        throw new Error('request-json required');
+    if (!argv['request-file']) {
+        throw new Error('request-file required');
     }
     if (!argv['output-file']) {
         throw new Error('output-file required');
     }
 
-    postJson(argv['request-uri'], JSON.parse(argv['request-json'])).then(function (rep) {
+    postJson(argv['request-uri'], JSON.parse(fs.readFileSync(argv['request-file']))).then(function (rep) {
         //fs.writeFileSync(argv['output-file'], JSON.stringify(rep, null, 4) + '\n');
         fs.writeFileSync(argv['output-file'], JSON.stringify(rep) + '\n');
         console.log('Success, wrote output to: ' + argv['output-file']);
