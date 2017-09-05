@@ -390,7 +390,8 @@ function sendSingleRequest() {
     }
 
     postJson(argv['request-uri'], JSON.parse(argv['request-json'])).then(function (rep) {
-        fs.writeFileSync(argv['output-file'], JSON.stringify(rep, null, 4) + '\n');
+        //fs.writeFileSync(argv['output-file'], JSON.stringify(rep, null, 4) + '\n');
+        fs.writeFileSync(argv['output-file'], JSON.stringify(rep) + '\n');
         console.log('Success, wrote output to: ' + argv['output-file']);
         process.exit(0);
     }).catch(function (err) {
