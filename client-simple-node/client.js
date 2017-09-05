@@ -352,6 +352,11 @@ function requestAndExecute() {
         contexts.push(clientConfig.supportedContexts[i].context);
     }
 
+    if (contexts.length === 0) {
+        console.log('no supported contexts, exiting');
+        return;
+    }
+
     postJson('/get-commit-simple', {
         client_name: clientConfig.clientName,
         contexts: contexts
