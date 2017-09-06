@@ -178,6 +178,7 @@ function handleGithubPush(req, res, state) {
     var committerName = body.head_commit && body.head_commit.committer && body.head_commit.committer.username;
     var repoName = body.repository && body.repository.name;
     var repoFullName = body.repository && body.repository.full_name;
+    var ref = body.ref;
     if (!repoFullName || !repoName) {
         console.log('ignoring github webhook "push", missing repo name');
         return;
@@ -190,6 +191,11 @@ function handleGithubPush(req, res, state) {
         console.log('ignoring github webhook "push" for non-allowed repo: ' + repoFullName);
         return;
     }
+    if (ref !== 'refs/heads/master') {
+        // XXX: hardcoded for now
+        console.log('ignoring github webhook "push" for non-master ref: ' + ref);
+        return;
+    }
 
     console.log('github webhook "push" to repo ' + repoFullName + ' from trusted committer ' + committerName + ', add automatic jobs');
 
@@ -198,6 +204,8 @@ function handleGithubPush(req, res, state) {
     // Tracking object for commit related simple test runs identified by
     // run name, with 'runs' tracking the individual runs and their status.
     // A named run maps directly to a Github status item.
+
+    // FIXME: prevent duplicate insert here
     db.insert({
         type: 'commit_simple',
         time: Date.now(),
@@ -261,6 +269,7 @@ function handleGithubPullRequest(req, res, state) {
 
     // XXX: add a commit_simple UUID for exact matching for get/finish?
 
+    // FIXME: prevent duplicate insert here
     db.insert({
         type: 'commit_simple',
         time: Date.now(),
@@ -301,12 +310,9 @@ function makeGithubWebhookHandler(state) {
             data: assert(body)
         });
 
-/*
         if (ghEvent === 'push') {
             handleGithubPush(req, res, state);
-        } else
-*/
-	if (ghEvent === 'pull_request') {
+        } else if (ghEvent === 'pull_request') {
             handleGithubPullRequest(req, res, state);
         } else {
             console.log('unhandled github webhook: ' + ghEvent);
