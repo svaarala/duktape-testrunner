@@ -34,11 +34,26 @@ function handleGetCommitRequests(state) {
         if (err) { console.log(err); return; }
         if (!docs || docs.length <= 0) { return; }
 
-        docs.forEach(function (doc) {
-            if (now - doc.time > 3 * 24 * 3600e3) {
-                return;  // ignore webhooks several days old
-            }
+        // Remove old webhooks that we don't want to reprocess.
+        docs = docs.filter(function (doc) {
+            return (now - doc.time <= 7 * 24 * 3600e3);
+        });
 
+        // Sort docs: newest (largest) first, so we execute latest jobs and
+        // then back in time.
+        docs.sort(function (a, b) {
+            if (typeof a.time !== 'number' || typeof b.time !== 'number') {
+                return 0;
+            }
+            if (a.time > b.time) {
+                return -1;
+            } else if (b.time > a.time) {
+                return 1;
+            }
+            return 0;
+        });
+
+        docs.forEach(function (doc) {
             getCommitRequests = getCommitRequests.filter(function (client) {
                 var i, j, ctx, run, found;
 
