@@ -4,27 +4,10 @@
 
 var Promise = require('bluebird');
 
-// Delete all documents.
-function deleteAll(db) {
-    return new Promise(function (resolve, reject) {
-        db.remove({
-        }, {
-            multi: true
-        }, function (err, numRemoved) {
-            console.log('removed', numRemoved, 'documents');
-            if (err) {
-                reject(err);
-            } else {
-                resolve(numRemoved);
-            }
-        });
-    });
-}
-
 // Find document(s).
 function find(db, arg) {
     return new Promise(function (resolve, reject) {
-        db.find(arg, function (err, docs) {
+        db.find(arg).toArray(function (err, docs) {
             if (err) {
                 reject(err);
             } else {
@@ -34,5 +17,32 @@ function find(db, arg) {
     });
 }
 
-exports.deleteAll = deleteAll;
+// Insert document.
+function insertOne(db, arg) {
+    return new Promise(function (resolve, reject) {
+        db.insertOne(arg, {}, function (err, result) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(result);
+            }
+        });
+    });
+}
+
+// Update one document.
+function updateOne(db, filter, update) {
+    return new Promise(function (resolve, reject) {
+        db.updateOne(filter, update, {}, function (err, result) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(result);
+            }
+        });
+    });
+}
+
+exports.insertOne = insertOne;
+exports.updateOne = updateOne;
 exports.find = find;
