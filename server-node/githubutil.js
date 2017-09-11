@@ -15,21 +15,20 @@ function createGithubStatus(state, status) {
     var db = assert(state.db);
     var github = assert(state.github);
 
-    db.find({
+    dbutil.find(db, {
         type: 'github_status',
         user: assert(status.user),
         repo: assert(status.repo),
         sha: assert(status.sha),
         context: assert(status.context)
-    }, function (err, docs) {
+    }).then(function (docs) {
         var doc;
-        if (err) { console.log(err); return; }
         if (docs && docs.length > 0) {
             console.log('github-status already exists');
             return;
         }
 
-        db.insert({
+        return dbutil.insertOne(db, {
             type: 'github_status',
             user: assert(status.user),
             repo: assert(status.repo),
@@ -40,6 +39,8 @@ function createGithubStatus(state, status) {
             context: assert(status.context),
             dirty: true
         });
+    }).catch(function (err) {
+        console.log(err);
     });
 }
 
@@ -48,15 +49,14 @@ function updateGithubStatus(state, status) {
     var db = assert(state.db);
     var github = assert(state.github);
 
-    db.find({
+    dbutil.find(db, {
         type: 'github_status',
         user: assert(status.user),
         repo: assert(status.repo),
         sha: assert(status.sha),
         context: assert(status.context)
-    }, function (err, docs) {
+    }).then(function (docs) {
         var doc;
-        if (err) { console.log(err); return; }
         if (!docs || docs.length <= 0) {
             console.log('github-status not found');
             return;
@@ -76,13 +76,16 @@ function updateGithubStatus(state, status) {
         check('target_url');
         check('description');
 
-        db.update({
+        dbutil.updateOne(db, {
             _id: doc._id
         }, {
             $set: setValues
-        }, function (err, numReplaced) {
+        }).catch(function (err) {
+            console.log(err);
             if (err) { throw err; }
         });
+    }).catch(function (err) {
+        console.log(err);
     });
 }
 
@@ -93,11 +96,10 @@ function pushGithubStatuses(state) {
     var db = assert(state.db);
     var github = assert(state.github);
 
-    db.find({
+    dbutil.find(db, {
         type: 'github_status',
         dirty: true
-    }, function (err, docs) {
-        if (err) { console.log(err); return; }
+    }).then(function (docs) {
         if (!docs || docs.length <= 0) { return; }
 
         docs.forEach(function (doc) {
@@ -148,18 +150,20 @@ function pushGithubStatuses(state) {
                         }
                     }
 
-                    db.update({
+                    dbutil.updateOne(db, {
                         _id: doc._id
                     }, {
                         $set: {
                             dirty: false
                         },
-                    }, function (err, numReplaced) {
-                        if (err) { throw err; }
+                    }).catch(function (err) {
+                        console.log(err);
                     });
                 });
             });
         });
+    }).catch(function (err) {
+        console.log(err);
     });
 }
 
@@ -206,7 +210,7 @@ function handleGithubPush(req, res, state) {
     // A named run maps directly to a Github status item.
 
     // FIXME: prevent duplicate insert here
-    db.insert({
+    return dbutil.insertOne(db, {
         type: 'commit_simple',
         time: Date.now(),
         runs: [],
@@ -215,10 +219,10 @@ function handleGithubPush(req, res, state) {
         repo_clone_url: assert(body.repository.clone_url),
         committer: committerName,
         sha: assert(commitHash)
+    }).then(function () {
+        // XXX: generalize and hide sibling access
+        require('./commitutil').handleGetCommitRequests(state);
     });
-
-    // XXX: generalize and hide sibling access
-    require('./commitutil').handleGetCommitRequests(state);
 }
 
 // Handle a 'pull_request' webhook.
@@ -270,7 +274,7 @@ function handleGithubPullRequest(req, res, state) {
     // XXX: add a commit_simple UUID for exact matching for get/finish?
 
     // FIXME: prevent duplicate insert here
-    db.insert({
+    dbutil.insertOne(db, {
         type: 'commit_simple',
         time: Date.now(),
         runs: [],
@@ -283,6 +287,7 @@ function handleGithubPullRequest(req, res, state) {
         sha: assert(commitHash)
     });
 
+    // FIXME: race
     // XXX: generalize and hide sibling access
     require('./commitutil').handleGetCommitRequests(state);
 }
@@ -303,13 +308,14 @@ function makeGithubWebhookHandler(state) {
         console.log('github webhook, event: ' + ghEvent + ', delivery: ' + ghDelivery);
 
         // Raw record of webhook requests received.
-        db.insert({
+        dbutil.insertOne(db, {
             type: 'github_webhook',
             x_github_event: ghEvent,
             x_github_delivery: ghDelivery,
             data: assert(body)
         });
 
+        // FIXME: futurify, so result is only sent when complete
         if (ghEvent === 'push') {
             handleGithubPush(req, res, state);
         } else if (ghEvent === 'pull_request') {
