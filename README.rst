@@ -36,15 +36,13 @@ The server is written in Node.js, using Express.js for the HTTP/HTTPS
 interfaces to interface with Github, test clients, and for serving the
 web UI.
 
-A NeDB database is used for persistent state, with individual objects stored
-as one-line JSON entries in a single database file.  The database file is
-grep-friendly so that you can e.g. grep for objects by type or field value.
+A MongoDB database (previously NeDB) is used for persistent state.
 
 There's some temporary RAM-based state for handling hanging requests, so that
 they can be woken up on state changes.  This state is non-critical and doesn't
 need to be persisted.
 
-NeDB conventions:
+MongoDB conventions:
 
 * Each document has a ``type`` field, with lowercase, underscore separated
   value identifying the document type.
@@ -231,8 +229,8 @@ for details:
 | /query-commit-simple        | POST     | Testrunner     | Query all result state for a repo + commit hash        |
 +-----------------------------+----------+----------------+--------------------------------------------------------+
 
-Nedb document types
-===================
+MongoDb document types
+======================
 
 These are not documented in detail here, see source for details:
 

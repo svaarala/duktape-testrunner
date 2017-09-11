@@ -28,10 +28,9 @@ function handleGetCommitRequests(state) {
 
     // XXX: Quite inefficient but good enough for now.
 
-    db.find({
+    dbutil.find(db, {
         type: 'commit_simple'
-    }, function (err, docs) {
-        if (err) { console.log(err); return; }
+    }).then(function (docs) {
         if (!docs || docs.length <= 0) { return; }
 
         // Remove old webhooks that we don't want to reprocess.
@@ -87,15 +86,16 @@ function handleGetCommitRequests(state) {
                             context: ctx
                         });
 
-                        db.update({
+                        dbutil.updateOne(db, {
                             _id: doc._id
                         }, {
                             $set: {
                                 runs: doc.runs
                             }
-                        }, function (err, numReplaced) {
+                        }).catch(function (err) {
                             if (err) { throw err; }
                         });
+                        // FIXME: proper Promise handling
 
                         console.log('start simple commit job for sha ' + doc.sha + ', context ' + ctx);
                         sendJsonReply(client.res, {
@@ -134,6 +134,8 @@ function handleGetCommitRequests(state) {
             console.log('pending clients: ' + getCommitRequestsCount + ' -> ' + pendingAfter);
         }
         getCommitRequestsCount = pendingAfter;
+    }).catch(function (err) {
+        console.log(err);
     });
 }
 
@@ -243,16 +245,17 @@ function makeFinishCommitSimpleHandler(state) {
                         console.log('finish-commit-job for sha ' + body.sha + ', context ' + body.context + '; took ' +
                                     (run.end_time - run.start_time) / 60e3 + ' mins');
 
-                        db.update({
+                        dbutil.updateOne(db, {
                             _id: doc._id
                         }, {
                             $set: {
                                 runs: doc.runs
                             }
-                        }, function (err, numReplaced) {
+                        }).catch (function (err) {
+                            console.log(err);
                             if (err) { throw err; }
-                            if (numReplaced != 1) { console.log('numReplaced unexpected:', numReplaced); }
                         });
+                        // FIXME: proper Promise handling
                     }
 
                     sendJsonReply(res, {});

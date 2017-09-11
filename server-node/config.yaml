@@ -7,8 +7,9 @@ serverPort: 9080
 serverPrivateKey: 'server.key'
 serverCertificate: 'server.crt'
 
-# NeDB database file, created automatically if missing.
-databaseFile: 'server.db'
+# MongoDB database URI, preferred.
+databaseUri: 'mongodb://localhost:27017/testserver'
+databaseCollection: 'testserver'
 
 # Testrunner API authentication.
 serverAuthPassword: 'foobar'
