@@ -112,6 +112,15 @@ function main() {
 }
 
 main().catch(function (err) {
-    console.log(err);
+    console.error(err.stack || err);
     process.exit(1);
+});
+
+process.on('uncaughtException', function (err) {
+    console.error(err.stack || err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', function (reason, p) {
+    console.error(reason, 'unhandled rejection for Promise:', p);
 });
