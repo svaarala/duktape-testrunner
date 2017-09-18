@@ -101,13 +101,21 @@ function main() {
             console.log('Duktape testrunner server listening at https://%s:%s', host, port);
         });
 
-        // Background job for hanging request timeouts, persistent
+        // Short interval background job for hanging request timeouts, persistent
         // Github pushes, etc.
-        function periodicDatabaseScan() {
+        function shortPeriodicDatabaseScan() {
             githubutil.pushGithubStatuses(state);       // persistent github status pushing
             commitutil.handleGetCommitRequests(state);  // webhook client timeouts
         }
-        var dbScanTimer = setInterval(periodicDatabaseScan, 5000);
+        var shortDbScanTimer = setInterval(shortPeriodicDatabaseScan, 5 * 1000);
+
+        // Long interval background job for detecting timed out jobs, etc.
+        function longPeriodicDatabaseScan() {
+            console.log('long periodic database scan');
+            commitutil.handleAutoFailPending(state);    // autofail too old pending runs
+        }
+        var longDbScanTimer = setInterval(longPeriodicDatabaseScan, 3600 * 1000);
+        setTimeout(longPeriodicDatabaseScan, 1000);  // run once right away
     });
 }
 

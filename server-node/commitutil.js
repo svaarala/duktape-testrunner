@@ -18,6 +18,27 @@ var sendJsonReply = expressutil.sendJsonReply;
 var getCommitRequests = [];
 var getCommitRequestsCount = null;  // for logging
 
+function filterOldCommits(state, docs, now) {
+    return docs.filter(function (doc) {
+        return (now - doc.time <= state.oldCommitAgeDays * 24 * 3600e3);
+    });
+}
+
+function sortCommitsByDate(state, docs) {
+    docs.sort(function (a, b) {
+        if (typeof a.time !== 'number' || typeof b.time !== 'number') {
+            return 0;
+        }
+        if (a.time > b.time) {
+            return -1;
+        } else if (b.time > a.time) {
+            return 1;
+        }
+        return 0;
+    });
+    return docs;  // in-place actually
+}
+
 // Recheck pending get-commit-simple requests: if new matching jobs are
 // available, respond to the client and remove the tracking state.  Also
 // handles request timeouts.
@@ -34,23 +55,11 @@ function handleGetCommitRequests(state) {
         if (!docs || docs.length <= 0) { return; }
 
         // Remove old webhooks that we don't want to reprocess.
-        docs = docs.filter(function (doc) {
-            return (now - doc.time <= state.oldCommitAgeDays * 24 * 3600e3);
-        });
+        docs = filterOldCommits(state, docs, now);
 
         // Sort docs: newest (largest) first, so we execute latest jobs and
         // then back in time.
-        docs.sort(function (a, b) {
-            if (typeof a.time !== 'number' || typeof b.time !== 'number') {
-                return 0;
-            }
-            if (a.time > b.time) {
-                return -1;
-            } else if (b.time > a.time) {
-                return 1;
-            }
-            return 0;
-        });
+        docs = sortCommitsByDate(state, docs);
 
         docs.forEach(function (doc) {
             getCommitRequests = getCommitRequests.filter(function (client) {
@@ -136,6 +145,77 @@ function handleGetCommitRequests(state) {
         getCommitRequestsCount = pendingAfter;
     }).catch(function (err) {
         console.log(err);
+    });
+}
+
+// Find commit contexts whose pending job is too old and make the context
+// eligible for a re-run.
+function handleAutoFailPending(state) {
+    var db = assert(state.db);
+    var github = assert(state.github);
+    var now = Date.now();
+
+    dbutil.find(db, {
+        type: 'commit_simple'
+    }).then(function (docs) {
+        var rerunCount = 0;
+
+        if (!docs || docs.length <= 0) { return; }
+
+        docs = filterOldCommits(state, docs, now);
+        docs = sortCommitsByDate(state, docs);
+
+        docs.forEach(function (doc) {
+            var i;
+            var newRuns;
+
+            if (!doc.runs) {
+                console.log('doc has no .runs');
+                return;
+            }
+
+            newRuns = doc.runs.map(function (run) {
+                var ageDays;
+                if (typeof run.start_time !== 'number') {
+                    console.log('run .start_time missing or invalid');
+                    return run;
+                }
+                if (typeof run.end_time === 'number') {
+                    return run;
+                }
+                ageDays = (now - run.start_time) / (24 * 3600e3);
+                if (ageDays < state.pendingAutoFailDays) {
+                    return run;
+                }
+                console.log('pending run too old, ' + ageDays + ' days, make eligible for re-run: commit: ' +
+                            doc.sha + ', context ' + run.context);
+                rerunCount++;
+
+                // For now just remove the run entirely.  This is not ideal
+                // but context eligibility check doesn't handle existing runs
+                // yet.
+                return null;
+            });
+            newRuns = newRuns.filter(function (run) { return run !== null; });
+
+            if (doc.runs.length !== newRuns.length) {
+                console.log('commit ' + doc.sha + ', oldRuns ' + doc.runs.length + ' -> ' + newRuns.length);
+
+                // FIXME: proper Promise handling
+                dbutil.updateOne(db, {
+                    _id: doc._id
+                }, {
+                    $set: {
+                        runs: newRuns
+                    }
+                }).catch (function (err) {
+                    console.log(err);
+                    if (err) { throw err; }
+                });
+            }
+        });
+
+        console.log('automatic re-runs for ' + rerunCount + ' contexts');
     });
 }
 
@@ -336,6 +416,7 @@ function makeQueryCommitSimpleHandler(state) {
 }
 
 exports.handleGetCommitRequests = handleGetCommitRequests;
+exports.handleAutoFailPending = handleAutoFailPending;
 exports.makeGetCommitSimpleHandler = makeGetCommitSimpleHandler;
 exports.makeAcceptCommitSimpleHandler = makeAcceptCommitSimpleHandler;
 exports.makeFinishCommitSimpleHandler = makeFinishCommitSimpleHandler;
