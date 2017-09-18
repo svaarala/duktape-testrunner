@@ -25,6 +25,13 @@ githubAuthUsername: 'foouser'
 githubAuthPassword: 'foopass'
 githubStatusUsername: 'foouser'
 
+# After this many days commits are considered too old and do not
+# trigger jobs.
+oldCommitAgeDays: 14
+
+# After this many days a pending run is considered failed and retried.
+pendingAutoFailDays: 2
+
 # Github rate limitation; ensures testrunner server doesn't hammer Github
 # in case a code or configuration bug causes repeated requests to be made.
 githubTokensPerHour: 120

@@ -35,7 +35,7 @@ function handleGetCommitRequests(state) {
 
         // Remove old webhooks that we don't want to reprocess.
         docs = docs.filter(function (doc) {
-            return (now - doc.time <= 7 * 24 * 3600e3);
+            return (now - doc.time <= state.oldCommitAgeDays * 24 * 3600e3);
         });
 
         // Sort docs: newest (largest) first, so we execute latest jobs and
