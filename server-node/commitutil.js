@@ -219,6 +219,78 @@ function handleAutoFailPending(state) {
     });
 }
 
+// Clear error status for jobs within age window.  For now called
+// manually.
+function handleClearJobErrors(state) {
+    var db = assert(state.db);
+    var github = assert(state.github);
+    var now = Date.now();
+
+    dbutil.find(db, {
+        type: 'commit_simple'
+    }).then(function (docs) {
+        var rerunCount = 0;
+
+        if (!docs || docs.length <= 0) { return; }
+
+        docs = filterOldCommits(state, docs, now);
+        docs = sortCommitsByDate(state, docs);
+
+        docs.forEach(function (doc) {
+            var i;
+            var newRuns;
+
+            if (!doc.runs) {
+                console.log('doc has no .runs');
+                return;
+            }
+
+            newRuns = doc.runs.map(function (run) {
+                var ageDays;
+                if (typeof run.start_time !== 'number') {
+                    console.log('run .start_time missing or invalid');
+                    return run;
+                }
+                if (typeof run.end_time !== 'number') {
+                    console.log('run .end_time missing or invalid');
+                    return run;
+                }
+                if (typeof run.state !== 'string') {
+                    console.log('run .state missing or invalid');
+                    return run;
+                }
+                if (run.state !== 'failure') {
+                    return run;
+                }
+
+                console.log('run status is failure, delete to re-run: commit: ' +
+                            doc.sha + ', context ' + run.context);
+                rerunCount++;
+                return null;
+            });
+            newRuns = newRuns.filter(function (run) { return run !== null; });
+
+            if (doc.runs.length !== newRuns.length) {
+                console.log('commit ' + doc.sha + ', oldRuns ' + doc.runs.length + ' -> ' + newRuns.length);
+
+                // FIXME: proper Promise handling
+                dbutil.updateOne(db, {
+                    _id: doc._id
+                }, {
+                    $set: {
+                        runs: newRuns
+                    }
+                }).catch (function (err) {
+                    console.log(err);
+                    if (err) { throw err; }
+                });
+            }
+        });
+
+        console.log('cleared error for ' + rerunCount + ' contexts');
+    });
+}
+
 // Create a get-commit-simple handler.
 function makeGetCommitSimpleHandler(state) {
     return function getCommitSimpleHandler(req, res) {
@@ -417,6 +489,7 @@ function makeQueryCommitSimpleHandler(state) {
 
 exports.handleGetCommitRequests = handleGetCommitRequests;
 exports.handleAutoFailPending = handleAutoFailPending;
+exports.handleClearJobErrors = handleClearJobErrors;
 exports.makeGetCommitSimpleHandler = makeGetCommitSimpleHandler;
 exports.makeAcceptCommitSimpleHandler = makeAcceptCommitSimpleHandler;
 exports.makeFinishCommitSimpleHandler = makeFinishCommitSimpleHandler;
